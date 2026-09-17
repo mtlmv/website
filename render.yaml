@@ -1,8 +1,11 @@
-databases:
-  - name: website-db
-    databaseName: website
-    user: website
-    plan: free
+# Блюпринт НЕ создаёт базу: Render разрешает только одну бесплатную базу
+# на аккаунт, и если она уже есть — весь деплой падает.
+# Поэтому реквизиты базы вводятся при деплое (Render спросит их сам).
+#
+# Подойдёт любая из двух:
+#   1. Уже существующая база на Render — возьмите её Internal Database URL
+#   2. Внешняя, например Neon (neon.tech) — там бесплатная база не удаляется
+#      через 30 дней; для неё задайте DB_PARAMS = ?sslmode=require
 
 services:
   - type: web
@@ -12,27 +15,20 @@ services:
     region: frankfurt
     healthCheckPath: /
     envVars:
-      # Render подставит реквизиты созданной выше базы
       - key: DB_HOST
-        fromDatabase:
-          name: website-db
-          property: host
+        sync: false
       - key: DB_PORT
-        fromDatabase:
-          name: website-db
-          property: port
+        value: 5432
       - key: DB_NAME
-        fromDatabase:
-          name: website-db
-          property: database
+        sync: false
       - key: DB_USERNAME
-        fromDatabase:
-          name: website-db
-          property: user
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase:
-          name: website-db
-          property: password
+        sync: false
+      # Для Neon и других баз с обязательным SSL: ?sslmode=require
+      # Для базы внутри Render можно оставить пустым
+      - key: DB_PARAMS
+        sync: false
       # Сгенерируется случайно при первом деплое и сохранится
       - key: JWT_SECRET
         generateValue: true

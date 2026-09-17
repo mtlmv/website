@@ -112,11 +112,23 @@ Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
 
 В репозитории лежит `Dockerfile` и `render.yaml` — Render поднимет и приложение, и базу сам.
 
+### Сначала база
+
+Блюпринт **не создаёт базу сам**: Render разрешает только одну бесплатную базу на аккаунт, и если она уже есть, весь деплой падает с ошибкой `cannot have more than one active free tier database`.
+
+Возьмите одну из двух:
+
+- **Уже существующую базу на Render** — откройте её, скопируйте `Internal Database URL` и разберите на части: хост, имя базы, пользователь, пароль.
+- **Neon** ([neon.tech](https://neon.tech)) — рекомендую: бесплатная база там не удаляется через 30 дней. Реквизиты берутся из строки подключения, а `DB_PARAMS` нужно задать как `?sslmode=require`.
+
+### Потом деплой
+
 1. Зарегистрируйтесь на [render.com](https://render.com) через GitHub.
 2. **New → Blueprint**, выберите репозиторий `mtlmv/website`.
-3. Render прочитает `render.yaml`, покажет веб-сервис и базу — нажмите **Apply**.
+3. Render прочитает `render.yaml` и спросит реквизиты базы — заполните `DB_HOST`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` и, если нужен SSL, `DB_PARAMS`.
+4. **Apply**.
 
-Реквизиты базы и `JWT_SECRET` подставятся автоматически, руками ничего вводить не нужно. Первая сборка занимает 5–10 минут: собирается Docker-образ с JDK 25.
+`JWT_SECRET` сгенерируется автоматически. Первая сборка занимает 5–10 минут: собирается Docker-образ с JDK 25.
 
 Адрес будет вида `https://website-xxxx.onrender.com`.
 
