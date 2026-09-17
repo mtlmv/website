@@ -1,0 +1,43 @@
+databases:
+  - name: website-db
+    databaseName: website
+    user: website
+    plan: free
+
+services:
+  - type: web
+    name: website
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    envVars:
+      # Render подставит реквизиты созданной выше базы
+      - key: DB_HOST
+        fromDatabase:
+          name: website-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: website-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: website-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: website-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: website-db
+          property: password
+      # Сгенерируется случайно при первом деплое и сохранится
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: 86400000
+      # На сервере логировать каждый SQL-запрос незачем
+      - key: SQL_LOGGING
+        value: false
