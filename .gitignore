@@ -35,5 +35,7 @@ build/
 ### Misc ###
 effective-pom-*.log
 
-### Secrets (contains DB password) ###
-src/main/resources/application.properties
+### Secrets ###
+# Реальные ключи. Шаблон — .env.example (он в git).
+# application.properties секретов не содержит — только ссылки ${...} на .env
+.env

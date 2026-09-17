@@ -4,7 +4,6 @@ package com.project.website.DTO.Comment;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import com.project.website.DTO.Comment.CommentResponse;
-import java.util.List;
 import java.time.LocalDateTime;
 
 @Data

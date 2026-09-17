@@ -22,7 +22,7 @@ cd website
 
 Если у вас уже есть локальная копия — просто `git pull`, чтобы подтянуть изменения.
 
-## 2. Настроить базу данных
+## 2. Настроить базу данных и ключи
 
 Создайте базу `website` в PostgreSQL (если её ещё нет):
 
@@ -30,15 +30,30 @@ cd website
 psql -U postgres -c "CREATE DATABASE website;"
 ```
 
-Скопируйте пример конфига и впишите свой пароль от Postgres:
+Скопируйте шаблон переменных окружения:
 
 ```powershell
-copy src\main\resources\application.properties.example src\main\resources\application.properties
+copy .env.example .env
 ```
 
-Откройте `src\main\resources\application.properties` и замените `CHANGE_ME` на реальный пароль пользователя `postgres`.
+Откройте `.env` и заполните:
 
-> Этот файл сознательно не в git (`.gitignore`) — в нём пароль от БД.
+| Переменная | Что это |
+|---|---|
+| `DB_URL` | JDBC-адрес базы |
+| `DB_USERNAME` | пользователь Postgres |
+| `DB_PASSWORD` | его пароль |
+| `JWT_SECRET` | ключ для подписи токенов, **минимум 32 байта** |
+| `JWT_EXPIRATION_MS` | срок жизни токена (по умолчанию сутки) |
+
+Сгенерировать свой `JWT_SECRET`:
+
+```powershell
+[Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Max 256 }))
+```
+
+> `.env` не в git (`.gitignore`) — там реальные ключи. В репозитории лежит только `.env.example`.
+> `application.properties` секретов не содержит: там только ссылки вида `${DB_PASSWORD}`, которые Spring подставляет из `.env` через `spring.config.import`.
 
 ## 3. Запустить backend (порт 8081)
 

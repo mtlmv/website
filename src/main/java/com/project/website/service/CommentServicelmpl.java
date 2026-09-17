@@ -4,7 +4,6 @@ import com.project.website.DTO.Comment.CommentCreateRequest;
 import com.project.website.DTO.Comment.CommentUpdateRequest;
 import com.project.website.enums.Role;
 import org.springframework.http.HttpStatus;
-import com.project.website.DTO.Comment.CommentRequest;
 import com.project.website.DTO.Comment.CommentResponse;
 import com.project.website.entity.Comment;
 import com.project.website.entity.Post;

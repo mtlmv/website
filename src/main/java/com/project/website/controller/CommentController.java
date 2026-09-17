@@ -1,7 +1,6 @@
 package com.project.website.controller;
 
 import com.project.website.DTO.Comment.CommentCreateRequest;
-import com.project.website.DTO.Comment.CommentRequest;
 import com.project.website.DTO.Comment.CommentResponse;
 import com.project.website.DTO.Comment.CommentUpdateRequest;
 import com.project.website.service.CommentService;

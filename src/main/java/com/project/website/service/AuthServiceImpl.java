@@ -30,7 +30,7 @@ public class AuthServiceImpl implements AuthService {
         if(!passworMatches){
             throw new RuntimeException("Wrong Password!");
         }
-        String token = JwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getEmail());
 
         return new LoginResponse(
                 user.getId(),
