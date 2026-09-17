@@ -53,6 +53,14 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Статика фронтенда (лежит в resources/static)
+                        .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/style.css",
+                                "/app.js",
+                                "/favicon.ico"
+                        ).permitAll()
                         .requestMatchers(
                                 "/auth/login",
                                 "/swagger-ui/**",

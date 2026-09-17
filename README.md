@@ -5,7 +5,7 @@ Backend на Spring Boot (Java) + минималистичный фронтен�
 ## Стек
 
 - **Backend**: Spring Boot 4, Spring Security (JWT), Spring Data JPA, PostgreSQL
-- **Frontend**: без сборки — чистые HTML/CSS/JS (папка `frontend/`)
+- **Frontend**: без сборки — чистые HTML/CSS/JS, отдаются самим бэкендом из `src/main/resources/static/`
 
 ## Требования
 
@@ -70,31 +70,40 @@ Started WebsiteApplication in X seconds
 
 **Если `mvnw.cmd`/`java` ничего не выводят и сразу завершаются** — значит `java`/`mvn` в системном PATH битые. Найдите рабочий JDK (например, тот, что использует ваша IDE) и явно укажите его через `$env:JAVA_HOME` перед запуском, как в примере выше.
 
-## 4. Запустить frontend (порт 8899)
+## 4. Открыть в браузере
 
-В отдельном окне терминала:
+Отдельный сервер для фронтенда не нужен — Spring Boot отдаёт его сам из `src/main/resources/static/`:
+
+**http://localhost:8081**
+
+Чтобы открыть с телефона в той же сети, узнайте IP компьютера и подключитесь к нему на том же порту:
 
 ```powershell
-cd website\frontend
-python -m http.server 8899
+(Get-NetIPConfiguration | Where-Object { $_.NetProfile.IPv4Connectivity -eq 'Internet' }).IPv4Address.IPAddress
 ```
 
-Откройте в браузере: **http://localhost:8899**
+Адрес будет вида `http://192.168.1.50:8081`. Если не открывается — скорее всего брандмауэр Windows режет входящие подключения. От имени администратора:
+
+```powershell
+New-NetFirewallRule -DisplayName "website dev" -Direction Inbound -Protocol TCP -LocalPort 8081 -Action Allow
+```
+
+Учтите: в сетях операторов (адреса вида `100.x.x.x`) устройства часто изолированы друг от друга, и тогда не поможет ничего — проверьте на обычном домашнем Wi-Fi.
 
 ## 5. Остановить
 
-- Если запускали в открытом окне терминала — просто `Ctrl+C` в этом окне (для backend и для frontend отдельно).
+- Если запускали в открытом окне терминала — просто `Ctrl+C` в этом окне.
 - Если процесс запущен в фоне (не видно окна), останавливайте по порту:
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8081,8899 -ErrorAction SilentlyContinue |
+Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty OwningProcess -Unique |
     ForEach-Object { Stop-Process -Id $_ -Force }
 ```
 
-Проверить, что порты освободились:
+Проверить, что порт освободился:
 
 ```powershell
-Get-NetTCPConnection -LocalPort 8081,8899 -ErrorAction SilentlyContinue
+Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue
 ```
 Если команда ничего не вывела — всё остановлено.
