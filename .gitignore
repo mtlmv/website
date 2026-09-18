@@ -39,3 +39,6 @@ effective-pom-*.log
 # Реальные ключи. Шаблон — .env.example (он в git).
 # application.properties секретов не содержит — только ссылки ${...} на .env
 .env
+
+# временный файл со строкой подключения
+neon.txt

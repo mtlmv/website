@@ -3,6 +3,7 @@ package com.project.website.service;
 import com.project.website.DTO.User.UserRequest;
 import com.project.website.DTO.User.UserResponse;
 import com.project.website.DTO.User.UserResponseId;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,7 +17,7 @@ public interface UserService {
 
     UserResponseId getById(Long id);
 
-    UserResponse update(Long id, UserRequest request);
+    UserResponse update(Long id, UserRequest request, Authentication authentication);
 
     String delete(Long id);
 

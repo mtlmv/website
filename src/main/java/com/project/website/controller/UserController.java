@@ -7,6 +7,7 @@ import com.project.website.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,8 +38,9 @@ public class UserController {
 
     @PutMapping("/{id}")
     public UserResponse update(@PathVariable Long id,
-                               @RequestBody @Valid UserRequest request) {
-        return userService.update(id, request);
+                               @RequestBody @Valid UserRequest request,
+                               Authentication authentication) {
+        return userService.update(id, request, authentication);
     }
 
     @DeleteMapping("/{id}")

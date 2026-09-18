@@ -59,7 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder
                     .getContext()
                             .setAuthentication(authentication);
-            filterChain.doFilter(request,response);
         }
+
+        // Вызывается всегда: иначе запрос, не подошедший под условие выше,
+        // молча обрывается и клиент получает пустой ответ
+        filterChain.doFilter(request, response);
     }
 }
