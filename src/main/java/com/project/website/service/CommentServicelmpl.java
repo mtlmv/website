@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +33,7 @@ public class CommentServicelmpl implements CommentService{
     private final CommentImageRepo commentImageRepo;
     private final UserRepo userRepo;
     private final PostRepo postRepo;
-
-    /** Что реально умеет показать браузер. SVG исключён намеренно: он может содержать скрипт. */
-    private static final Set<String> ALLOWED_IMAGE_TYPES =
-            Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
-
-    private static final long MAX_IMAGE_BYTES = 12L * 1024 * 1024;
+    private final ImageValidator imageValidator;
 
     private @NotNull CommentResponse convertToResponse(@NotNull Comment comment){
         CommentResponse response = new CommentResponse();
@@ -67,7 +61,7 @@ public class CommentServicelmpl implements CommentService{
 
         boolean withImage = image != null && !image.isEmpty();
         if (withImage) {
-            validateImage(image);
+            imageValidator.validate(image);
         }
 
         Comment comment = Comment.builder()
@@ -92,17 +86,6 @@ public class CommentServicelmpl implements CommentService{
         }
 
         return convertToResponse(savedComment);
-    }
-
-    private void validateImage(MultipartFile image) {
-        if (image.getSize() > MAX_IMAGE_BYTES) {
-            throw new RuntimeException("Файл больше 12 МБ");
-        }
-        String contentType = image.getContentType();
-        // Тип берём из заголовка запроса, а не из имени файла: расширение подделывается тривиально
-        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
-            throw new RuntimeException("Можно прикрепить только изображение: JPEG, PNG, WebP или GIF");
-        }
     }
 
     @Override

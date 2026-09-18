@@ -29,6 +29,12 @@ public class Post {
     @JoinColumn(name = "user_id")
     User author;
 
+    // Только признак наличия картинки, байты — в таблице post_images.
+    // default false обязателен: без него ddl-auto=update не может добавить
+    // NOT NULL колонку в таблицу, где уже есть строки, и молча её пропускает
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    boolean hasImage;
+
     public Post(String title, String content, LocalDateTime createdAt, User author){
         this.author = author;
         this.content = content;

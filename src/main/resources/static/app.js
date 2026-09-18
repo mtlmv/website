@@ -109,6 +109,49 @@ function compressImage(file) {
   });
 }
 
+// Один и тот же выбор фото нужен и в посте, и в комментарии.
+// Готовый к отправке файл кладётся в fileInput._ready
+function setupImagePicker(pickBtn, fileInput, preview) {
+  if (!pickBtn || !fileInput || !preview) return;
+
+  pickBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      preview.hidden = true;
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(`Файл ${formatSize(file.size)} — это больше 12 МБ`, true);
+      fileInput.value = '';
+      preview.hidden = true;
+      return;
+    }
+
+    preview.hidden = false;
+    preview.innerHTML = '<span class="attach-name">Обрабатываю фото…</span>';
+
+    const compressed = await compressImage(file);
+    fileInput._ready = compressed;
+
+    const saved = file.size - compressed.size;
+    preview.innerHTML = `
+      <img src="${URL.createObjectURL(compressed)}" alt="" />
+      <span class="attach-name">
+        ${esc(file.name)} · ${formatSize(compressed.size)}
+        ${saved > 0 ? `<b>сжато с ${formatSize(file.size)}</b>` : ''}
+      </span>
+      <button type="button" class="attach-drop" title="Убрать">&#10005;</button>
+    `;
+    preview.querySelector('.attach-drop').onclick = () => {
+      fileInput.value = '';
+      fileInput._ready = null;
+      preview.hidden = true;
+    };
+  });
+}
+
 let toastTimer = null;
 function toast(message, isError = false) {
   const t = document.getElementById('toast');
@@ -321,7 +364,11 @@ async function renderFeed() {
         <label for="f-content">Текст</label>
         <textarea id="f-content" name="content" required placeholder="Расскажите подробнее"></textarea>
       </div>
+      <input id="postFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+      <div class="attach-preview" id="postPreview" hidden></div>
       <div class="row-end">
+        <button type="button" class="attach" id="postPickImage" title="Прикрепить фото" aria-label="Прикрепить фото">&#128247;</button>
+        <span style="flex:1"></span>
         <button class="btn-soft" type="button" id="composeCancel">Отмена</button>
         <button class="btn" type="submit">Опубликовать</button>
       </div>
@@ -350,19 +397,31 @@ async function renderFeed() {
     composer.hidden = true;
   };
 
+  const postFile = document.getElementById('postFile');
+  const postPreview = document.getElementById('postPreview');
+  setupImagePicker(document.getElementById('postPickImage'), postFile, postPreview);
+
   composer.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = composer.querySelector('button[type=submit]');
     btn.disabled = true;
+
+    const image = postFile?._ready;
+    if (image) btn.textContent = 'Загрузка…';
+
     try {
-      const created = await api('/posts', {
-        method: 'POST',
-        body: { title: composer.elements.title.value.trim(), content: composer.elements.content.value.trim() },
-      });
+      const fd = new FormData();
+      fd.append('title', composer.elements.title.value.trim());
+      fd.append('content', composer.elements.content.value.trim());
+      if (image) fd.append('image', image);
+
+      const created = await api('/posts', { method: 'POST', form: fd });
       posts = posts || [];
       posts.unshift(created);
       composer.reset();
       composer.hidden = true;
+      if (postFile) postFile._ready = null;
+      if (postPreview) postPreview.hidden = true;
       renderPostsList();
       updateHeroStats();
       toast('Пост опубликован');
@@ -370,6 +429,7 @@ async function renderFeed() {
       toast(err.message, true);
     } finally {
       btn.disabled = false;
+      btn.textContent = 'Опубликовать';
     }
   });
 
@@ -581,6 +641,10 @@ function postCardHtml(post) {
   ` : `
     <h3 class="post-title">${esc(post.title)}</h3>
     <p class="post-body">${esc(post.content)}</p>
+    ${post.hasImage ? `
+    <a class="post-img" href="${API_BASE}/posts/${post.id}/image" target="_blank" rel="noopener">
+      <img src="${API_BASE}/posts/${post.id}/image" alt="Фото к посту" loading="lazy" />
+    </a>` : ''}
     <div class="post-acts">
       <button class="act ${post.liked ? 'on' : ''}" data-action="like">
         <span class="h">${post.liked ? '&#9829;' : '&#9825;'}</span> ${post.likesCount}
@@ -719,41 +783,11 @@ function attachPostHandlers(post) {
   const fileInput = article.querySelector(`#cmt-file-${post.id}`);
   const preview = article.querySelector('[data-preview]');
 
-  article.querySelector('[data-action="pick-image"]')?.addEventListener('click', () => fileInput.click());
-
-  fileInput?.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) {
-      preview.hidden = true;
-      return;
-    }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      toast(`Файл ${formatSize(file.size)} — это больше 12 МБ`, true);
-      fileInput.value = '';
-      preview.hidden = true;
-      return;
-    }
-    preview.hidden = false;
-    preview.innerHTML = '<span class="attach-name">Обрабатываю фото…</span>';
-
-    const compressed = await compressImage(file);
-    fileInput._ready = compressed;
-
-    const saved = file.size - compressed.size;
-    preview.innerHTML = `
-      <img src="${URL.createObjectURL(compressed)}" alt="" />
-      <span class="attach-name">
-        ${esc(file.name)} · ${formatSize(compressed.size)}
-        ${saved > 0 ? `<b>сжато с ${formatSize(file.size)}</b>` : ''}
-      </span>
-      <button type="button" class="attach-drop" title="Убрать">&#10005;</button>
-    `;
-    preview.querySelector('.attach-drop').onclick = () => {
-      fileInput.value = '';
-      fileInput._ready = null;
-      preview.hidden = true;
-    };
-  });
+  setupImagePicker(
+    article.querySelector('[data-action="pick-image"]'),
+    fileInput,
+    preview
+  );
 
   commentForm?.addEventListener('submit', async (e) => {
     e.preventDefault();

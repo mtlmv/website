@@ -5,11 +5,13 @@ import com.project.website.DTO.Post.PostRequest;
 import com.project.website.DTO.Post.PostResponse;
 import com.project.website.DTO.Post.PostResponseId;
 import com.project.website.entity.Post;
+import com.project.website.entity.PostImage;
 import com.project.website.entity.User;
 import com.project.website.enums.Role;
 import com.project.website.exeption.ForbiddenException;
 import com.project.website.repository.CommentRepo;
 import com.project.website.repository.LikeRepo;
+import com.project.website.repository.PostImageRepo;
 import com.project.website.repository.PostRepo;
 import com.project.website.repository.UserRepo;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +20,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import com.project.website.entity.Comment;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,9 +32,11 @@ import java.util.List;
 
 public class PostServiceImpl implements PostService {
     private final PostRepo postRepo;
+    private final PostImageRepo postImageRepo;
     private final UserRepo userRepo;
     private final LikeRepo likeRepo;
     private final CommentRepo commentRepo;
+    private final ImageValidator imageValidator;
 
 
     private CommentResponse convertCommentToResponse(Comment comment) {
@@ -57,6 +63,7 @@ public class PostServiceImpl implements PostService {
         response.setAuthorId(post.getAuthor().getId());
         response.setAuthorName(post.getAuthor().getName());
         response.setCreatedAt(post.getCreatedAt());
+        response.setHasImage(post.isHasImage());
 
         //КОЛИЧЕСТВО ЛАЙКОВ
         long likesCount = likeRepo.countByPostId(post.getId());
@@ -100,23 +107,50 @@ public class PostServiceImpl implements PostService {
 
 //CREATE
     @Override
+    @Transactional
     public PostResponse create(
             @NotNull PostRequest request,
+            MultipartFile image,
             Authentication authentication)
     {
         String email = authentication.getName();
         User author = userRepo.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        boolean withImage = image != null && !image.isEmpty();
+        if (withImage) {
+            imageValidator.validate(image);
+        }
+
         Post post = Post.builder()
                 .title(request.getTitle())
                 .content(request.getContent())
                 .author(author)
                 .createdAt(LocalDateTime.now())
+                .hasImage(withImage)
                 .build();
 
         Post savedPost = postRepo.save(post);
+
+        if (withImage) {
+            try {
+                postImageRepo.save(PostImage.builder()
+                        .postId(savedPost.getId())
+                        .contentType(image.getContentType())
+                        .data(image.getBytes())
+                        .build());
+            } catch (IOException e) {
+                throw new RuntimeException("Не удалось прочитать файл изображения");
+            }
+        }
+
         return convertToResponse(savedPost, authentication);
+    }
+
+    @Override
+    public PostImage getImage(Long postId) {
+        return postImageRepo.findById(postId)
+                .orElseThrow(() -> new RuntimeException("У этого поста нет изображения"));
     }
 
 //GET BY ID
@@ -222,6 +256,10 @@ public PostResponse getPostById(Long id, Authentication authentication) {
 
         commentRepo.deleteByPostId(id);
         likeRepo.deleteByPostId(id);
+        // Иначе картинка осталась бы в базе навсегда, ни на что не ссылаясь
+        if (post.isHasImage()) {
+            postImageRepo.deleteById(id);
+        }
         postRepo.delete(post);
 
         return response;

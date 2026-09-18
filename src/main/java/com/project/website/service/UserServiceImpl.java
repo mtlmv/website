@@ -2,12 +2,15 @@ package com.project.website.service;
 
 import com.project.website.DTO.User.UserRequest;
 import com.project.website.DTO.User.UserResponse;
+import com.project.website.entity.Comment;
 import com.project.website.entity.Post;
 import com.project.website.entity.User;
 import com.project.website.exeption.ForbiddenException;
 import com.project.website.mapper.UserMapper;
+import com.project.website.repository.CommentImageRepo;
 import com.project.website.repository.CommentRepo;
 import com.project.website.repository.LikeRepo;
+import com.project.website.repository.PostImageRepo;
 import com.project.website.repository.PostRepo;
 import com.project.website.repository.UserRepo;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +31,9 @@ public class UserServiceImpl implements UserService{
 
     private final UserRepo userRepo;
     private final PostRepo postRepo;
+    private final PostImageRepo postImageRepo;
     private final CommentRepo commentRepo;
+    private final CommentImageRepo commentImageRepo;
     private final LikeRepo likeRepo;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
@@ -124,13 +129,20 @@ public class UserServiceImpl implements UserService{
         // Порядок важен: сначала всё, что ссылается на пользователя и его посты,
         // иначе удаление упрётся во внешние ключи
         likeRepo.deleteByUserId(id);
+        commentImageRepo.deleteAllById(
+                commentRepo.findByAuthorId(id).stream().map(Comment::getId).toList());
         commentRepo.deleteByAuthorId(id);
 
         List<Post> ownPosts = postRepo.findByAuthorId(id);
         for (Post post : ownPosts) {
-            // на чужих постах могли остаться лайки и комментарии других людей
+            // на его постах могли остаться лайки и комментарии других людей
             likeRepo.deleteByPostId(post.getId());
+            commentImageRepo.deleteAllById(
+                    commentRepo.findByPostId(post.getId()).stream().map(Comment::getId).toList());
             commentRepo.deleteByPostId(post.getId());
+            if (post.isHasImage()) {
+                postImageRepo.deleteById(post.getId());
+            }
         }
         postRepo.deleteAll(ownPosts);
 

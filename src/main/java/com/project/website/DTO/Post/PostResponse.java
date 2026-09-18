@@ -23,5 +23,8 @@ public class PostResponse {
     Long likesCount;
     boolean liked;
 
+    // Байты не отдаются: фронтенд забирает картинку запросом GET /posts/{id}/image
+    boolean hasImage;
+
     List<CommentResponse> comments;
 }

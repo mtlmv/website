@@ -491,6 +491,21 @@ input, textarea { font: inherit; color: inherit; }
   background: var(--field-2);
 }
 
+.post-img {
+  display: block;
+  margin: 0 0 16px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--field-2);
+}
+.post-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 460px;
+  object-fit: cover;
+}
+
 /* ---------- контрастный блок ---------- */
 
 .feature {
