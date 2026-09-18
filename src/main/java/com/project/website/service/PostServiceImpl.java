@@ -42,6 +42,7 @@ public class PostServiceImpl implements PostService {
         response.setAuthorId(comment.getAuthor().getId());
         response.setAuthorName(comment.getAuthor().getName());
         response.setCreatedAt(comment.getCreatedAt());
+        response.setHasImage(comment.isHasImage());
 
         return response;
     }

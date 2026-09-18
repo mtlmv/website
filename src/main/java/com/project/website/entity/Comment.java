@@ -34,6 +34,13 @@ public class Comment {
     @JoinColumn(name = "post_id")
     Post post;
 
+    // Только признак наличия картинки. Сами байты лежат в отдельной таблице
+    // (CommentImage), иначе Hibernate тянул бы их при каждой загрузке ленты.
+    // default false обязателен: без него ddl-auto=update не может добавить
+    // NOT NULL колонку в таблицу, где уже есть строки, и молча её пропускает
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    boolean hasImage;
+
     public Comment(Long id, String text, LocalDateTime createdAt, Post post){
         this.id = id;
         this.text = text;

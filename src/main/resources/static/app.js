@@ -70,6 +70,45 @@ function plural(n, one, few, many) {
   return many;
 }
 
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 1600;
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' Б';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' КБ';
+  return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
+}
+
+// Фото с камеры весит мегабайты, а в ленте показывается шириной в пару сотен
+// пикселей. Ужимаем до отправки: экономит трафик на мобильном и место в базе.
+// GIF пропускаем как есть — canvas превратил бы анимацию в один кадр.
+function compressImage(file) {
+  return new Promise((resolve) => {
+    if (file.type === 'image/gif') return resolve(file);
+
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        // Если сжатие не помогло (уже маленькая картинка) — шлём оригинал
+        if (!blob || blob.size >= file.size) return resolve(file);
+        resolve(new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.82);
+    };
+
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 let toastTimer = null;
 function toast(message, isError = false) {
   const t = document.getElementById('toast');
@@ -82,8 +121,9 @@ function toast(message, isError = false) {
 
 // ---------- API client ----------
 
-async function api(path, { method = 'GET', body, auth = true } = {}) {
+async function api(path, { method = 'GET', body, form, auth = true } = {}) {
   const headers = {};
+  // Для FormData заголовок не ставим: браузер сам добавит boundary
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth && session?.token) headers['Authorization'] = 'Bearer ' + session.token;
 
@@ -92,7 +132,9 @@ async function api(path, { method = 'GET', body, auth = true } = {}) {
     res = await fetch(API_BASE + path, {
       method,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: form !== undefined ? form
+          : body !== undefined ? JSON.stringify(body)
+          : undefined,
     });
   } catch {
     throw new Error('Не удалось соединиться с сервером. Проверьте, что backend запущен.');
@@ -556,8 +598,11 @@ function postCardHtml(post) {
         : '<p class="cmt-txt" style="color:var(--muted)">Комментариев пока нет</p>'}
       <form class="cmt-form" data-action="add-comment">
         <input id="cmt-${post.id}" name="text" type="text" placeholder="Написать комментарий…" required maxlength="500" />
+        <input id="cmt-file-${post.id}" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+        <button type="button" class="attach" data-action="pick-image" title="Прикрепить фото" aria-label="Прикрепить фото">&#128247;</button>
         <button class="btn" type="submit">Отправить</button>
       </form>
+      <div class="attach-preview" data-preview hidden></div>
     </div>
   `;
 
@@ -591,6 +636,10 @@ function commentHtml(c) {
           <small>${formatDate(c.createdAt)}</small>
         </div>
         <p class="cmt-txt">${esc(c.text)}</p>
+        ${c.hasImage ? `
+        <a class="cmt-img" href="${API_BASE}/comments/${c.id}/image" target="_blank" rel="noopener">
+          <img src="${API_BASE}/comments/${c.id}/image" alt="Фото к комментарию" loading="lazy" />
+        </a>` : ''}
       </div>
       ${canManage ? `
       <div class="cmt-acts">
@@ -666,15 +715,64 @@ function attachPostHandlers(post) {
     }
   });
 
-  article.querySelector('[data-action="add-comment"]')?.addEventListener('submit', async (e) => {
+  const commentForm = article.querySelector('[data-action="add-comment"]');
+  const fileInput = article.querySelector(`#cmt-file-${post.id}`);
+  const preview = article.querySelector('[data-preview]');
+
+  article.querySelector('[data-action="pick-image"]')?.addEventListener('click', () => fileInput.click());
+
+  fileInput?.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    if (!file) {
+      preview.hidden = true;
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(`Файл ${formatSize(file.size)} — это больше 12 МБ`, true);
+      fileInput.value = '';
+      preview.hidden = true;
+      return;
+    }
+    preview.hidden = false;
+    preview.innerHTML = '<span class="attach-name">Обрабатываю фото…</span>';
+
+    const compressed = await compressImage(file);
+    fileInput._ready = compressed;
+
+    const saved = file.size - compressed.size;
+    preview.innerHTML = `
+      <img src="${URL.createObjectURL(compressed)}" alt="" />
+      <span class="attach-name">
+        ${esc(file.name)} · ${formatSize(compressed.size)}
+        ${saved > 0 ? `<b>сжато с ${formatSize(file.size)}</b>` : ''}
+      </span>
+      <button type="button" class="attach-drop" title="Убрать">&#10005;</button>
+    `;
+    preview.querySelector('.attach-drop').onclick = () => {
+      fileInput.value = '';
+      fileInput._ready = null;
+      preview.hidden = true;
+    };
+  });
+
+  commentForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.target;
     const text = form.elements.text.value.trim();
     if (!text) return;
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
+
+    const image = fileInput?._ready;
+    if (image) btn.textContent = 'Загрузка…';
+
     try {
-      const created = await api('/comments', { method: 'POST', body: { text, postId: post.id } });
+      const fd = new FormData();
+      fd.append('text', text);
+      fd.append('postId', post.id);
+      if (image) fd.append('image', image);
+
+      const created = await api('/comments', { method: 'POST', form: fd });
       post.comments = post.comments || [];
       post.comments.push(created);
       expandedPosts.add(post.id);
@@ -683,6 +781,7 @@ function attachPostHandlers(post) {
     } catch (err) {
       toast(err.message, true);
       btn.disabled = false;
+      btn.textContent = 'Отправить';
     }
   });
 

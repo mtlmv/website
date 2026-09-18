@@ -67,6 +67,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        // Тег img не умеет слать заголовок Authorization,
+                        // поэтому картинки комментариев отдаются без токена
+                        .requestMatchers(HttpMethod.GET, "/comments/*/image").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/users/**")
                         .hasRole("ADMIN")
 

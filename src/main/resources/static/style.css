@@ -426,6 +426,71 @@ input, textarea { font: inherit; color: inherit; }
 .cmt-form input::placeholder { color: #93A8BC; }
 .cmt-form input:focus { outline: none; background: var(--white); border-color: var(--blue-600); }
 
+/* ---------- фото в комментарии ---------- */
+
+.attach {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--field);
+  font-size: 16px;
+  line-height: 1;
+  transition: background .18s ease;
+}
+.attach:hover { background: var(--field-2); }
+
+.attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  background: var(--field);
+  border-radius: 16px;
+}
+.attach-preview img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex: 0 0 auto;
+}
+.attach-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+.attach-name b { display: block; font-weight: 700; color: #12934F; }
+.attach-drop {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 6px;
+  border-radius: 8px;
+}
+.attach-drop:hover { color: var(--red); background: #FDECEB; }
+
+.cmt-img {
+  display: block;
+  margin-top: 9px;
+  border-radius: 14px;
+  overflow: hidden;
+  max-width: 260px;
+}
+.cmt-img img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--field-2);
+}
+
 /* ---------- контрастный блок ---------- */
 
 .feature {

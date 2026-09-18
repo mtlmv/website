@@ -16,5 +16,8 @@ public class CommentResponse {
     Long authorId;
     String authorName;
     String text;
+    // Байты картинки здесь не отдаются — фронтенд забирает её
+    // отдельным запросом GET /comments/{id}/image
+    boolean hasImage;
     LocalDateTime createdAt;
 }
