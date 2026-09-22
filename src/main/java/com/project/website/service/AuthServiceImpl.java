@@ -32,12 +32,16 @@ public class AuthServiceImpl implements AuthService {
         }
         String token = jwtService.generateToken(user.getEmail());
 
-        return new LoginResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole().name(),
-                token
-        );
+        // Через builder, а не позиционный конструктор: name, username и email
+        // идут подряд тремя String, и их перестановка компилятором не ловится
+        return LoginResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .role(user.getRole().name())
+                .hasAvatar(user.isHasAvatar())
+                .token(token)
+                .build();
     }
 }

@@ -15,7 +15,11 @@ public class UserMapper {
 
         response.setId(user.getId());
         response.setName(user.getName());
+        response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
+        response.setBirthDate(user.getBirthDate());
+        response.setBio(user.getBio());
+        response.setHasAvatar(user.isHasAvatar());
 
         return response;
     }
@@ -24,8 +28,13 @@ public class UserMapper {
 
         UserResponseId response = new UserResponseId();
 
+        response.setId(user.getId());
         response.setName(user.getName());
+        response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
+        response.setBirthDate(user.getBirthDate());
+        response.setBio(user.getBio());
+        response.setHasAvatar(user.isHasAvatar());
 
         return response;
     }

@@ -70,6 +70,17 @@ function plural(n, one, few, many) {
   return many;
 }
 
+// Адрес аватара не меняется при замене фото, а сервер разрешает кэшировать его
+// на 5 минут. Метка версии заставляет браузер забрать новое фото сразу же.
+function avatarHtml(user, cls = '') {
+  const klass = ('ava ' + cls).trim();
+  if (!user || !user.hasAvatar) {
+    return `<span class="${klass}">${esc(initial(user ? user.name : ''))}</span>`;
+  }
+  const v = user.avatarVersion ? '?v=' + user.avatarVersion : '';
+  return `<img class="${klass}" src="/users/${user.id}/avatar${v}" alt="" />`;
+}
+
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_SIDE = 1600;
 
@@ -242,7 +253,7 @@ function renderNav() {
 
   navEl.innerHTML = `
     <div class="who">
-      <span class="ava">${esc(initial(session.name))}</span>
+      ${avatarHtml(session)}
       <span class="hello">
         <small>Вы вошли как</small>
         <b>${esc(session.name)}</b>
@@ -279,6 +290,13 @@ function renderAuthForm(mode) {
           <div class="field">
             <label for="f-name">Имя</label>
             <input id="f-name" name="name" type="text" required autocomplete="name" placeholder="Как вас зовут" />
+          </div>` : ''}
+          ${!isLogin ? `
+          <div class="field">
+            <label for="f-username">Имя пользователя</label>
+            <input id="f-username" name="username" type="text" required
+                   pattern="[A-Za-z0-9_]{3,20}" autocomplete="username"
+                   title="3–20 символов: латиница, цифры и _" placeholder="latin_nick" />
           </div>` : ''}
           <div class="field">
             <label for="f-email">Email</label>
@@ -325,6 +343,7 @@ function renderAuthForm(mode) {
       } else {
         const payload = {
           name: form.elements.name.value.trim(),
+          username: form.elements.username.value.trim(),
           email: form.elements.email.value.trim(),
           password: form.elements.password.value,
         };
@@ -478,7 +497,15 @@ async function renderProfile() {
   listContext = 'profile';
   app.innerHTML = `
     <section class="prof-hero">
-      <span class="ava xl">${esc(initial(session.name))}</span>
+      <div class="ava-box" id="avaBox">${avatarHtml(session, 'xl')}</div>
+      <div class="ava-actions">
+        <button type="button" class="btn-ghost" id="avaPick">
+          ${session.hasAvatar ? 'Изменить фото' : 'Добавить фото'}
+        </button>
+        <button type="button" class="btn-ghost danger" id="avaDrop"
+                ${session.hasAvatar ? '' : 'hidden'}>Удалить</button>
+      </div>
+      <input type="file" id="avaFile" accept="image/*" hidden />
       <p class="prof-name">${esc(session.name)}</p>
       <p class="prof-mail">${esc(session.email)}</p>
       <div class="stats">
@@ -499,9 +526,19 @@ async function renderProfile() {
         <input id="f-pmail" name="email" type="email" required value="${esc(session.email)}" />
       </div>
       <div class="field">
-        <label for="f-ppass">Новый пароль</label>
-        <input id="f-ppass" name="password" type="password" minlength="6"
-               placeholder="Оставьте пустым, чтобы не менять" />
+        <label for="f-pusername">Имя пользователя</label>
+        <input id="f-pusername" name="username" type="text" required
+               pattern="[A-Za-z0-9_]{3,20}" title="3–20 символов: латиница, цифры и _"
+               value="${esc(session.username || '')}" />
+      </div>
+      <div class="field">
+        <label for="f-pbirth">Дата рождения</label>
+        <input id="f-pbirth" name="birthDate" type="date" value="${esc(session.birthDate || '')}" />
+      </div>
+      <div class="field">
+        <label for="f-pbio">О себе</label>
+        <textarea id="f-pbio" name="bio" rows="3" maxlength="500"
+                  placeholder="Пара слов о вас">${esc(session.bio || '')}</textarea>
       </div>
       <div class="field">
         <label for="f-prole">Роль</label>
@@ -513,9 +550,75 @@ async function renderProfile() {
       <div class="error-text" id="profileError" hidden></div>
     </form>
 
+    <form class="card" id="passwordForm">
+      <p class="card-h">Смена пароля</p>
+      <div class="field">
+        <label for="f-curpass">Текущий пароль</label>
+        <input id="f-curpass" name="currentPassword" type="password" required
+               autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label for="f-newpass">Новый пароль</label>
+        <input id="f-newpass" name="newPassword" type="password" required minlength="6"
+               autocomplete="new-password" />
+      </div>
+      <div class="row-end">
+        <button class="btn" type="submit">Сменить пароль</button>
+      </div>
+      <div class="error-text" id="passwordError" hidden></div>
+    </form>
+
     <div class="sec"><h2>Мои посты</h2></div>
     <div id="postsContainer"><div class="loading">Загрузка…</div></div>
   `;
+
+  // Аватар отправляется сразу после выбора: отдельной кнопки «сохранить» нет,
+  // иначе фото и текстовые поля сохранялись бы двумя разными запросами формы
+  const avaFile = document.getElementById('avaFile');
+  const avaPick = document.getElementById('avaPick');
+
+  avaPick.addEventListener('click', () => avaFile.click());
+
+  avaFile.addEventListener('change', async () => {
+    const file = avaFile.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(`Файл ${formatSize(file.size)} — это больше 12 МБ`, true);
+      avaFile.value = '';
+      return;
+    }
+
+    avaPick.disabled = true;
+    avaPick.textContent = 'Загружаю…';
+    try {
+      const compressed = await compressImage(file);
+      const form = new FormData();
+      form.append('image', compressed);
+      const updated = await api('/users/' + session.id + '/avatar', { method: 'POST', form });
+      saveSession({ ...session, hasAvatar: updated.hasAvatar, avatarVersion: Date.now() });
+      refreshAvatars();
+      toast('Фото обновлено');
+    } catch (err) {
+      toast(err.message, true);
+    } finally {
+      avaFile.value = '';
+      avaPick.disabled = false;
+      avaPick.textContent = session.hasAvatar ? 'Изменить фото' : 'Добавить фото';
+    }
+  });
+
+  document.getElementById('avaDrop').addEventListener('click', async () => {
+    if (!confirm('Удалить фото профиля?')) return;
+    try {
+      await api('/users/' + session.id + '/avatar', { method: 'DELETE' });
+      saveSession({ ...session, hasAvatar: false, avatarVersion: Date.now() });
+      refreshAvatars();
+      toast('Фото удалено');
+    } catch (err) {
+      toast(err.message, true);
+    }
+  });
 
   document.getElementById('profileForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -525,16 +628,53 @@ async function renderProfile() {
     const btn = form.querySelector('button[type=submit]');
     btn.disabled = true;
     try {
-      const body = { name: form.elements.name.value.trim(), email: form.elements.email.value.trim() };
-      if (form.elements.password.value) body.password = form.elements.password.value;
+      const body = {
+        name: form.elements.name.value.trim(),
+        username: form.elements.username.value.trim(),
+        email: form.elements.email.value.trim(),
+        // пустая строка из input[type=date] не разбирается в LocalDate — нужен null
+        birthDate: form.elements.birthDate.value || null,
+        bio: form.elements.bio.value.trim() || null,
+      };
       const updated = await api('/users/' + session.id, { method: 'PUT', body });
-      saveSession({ ...session, name: updated.name, email: updated.email });
-      form.elements.password.value = '';
+      saveSession({
+        ...session,
+        name: updated.name,
+        username: updated.username,
+        email: updated.email,
+        birthDate: updated.birthDate,
+        bio: updated.bio,
+      });
       renderNav();
       document.querySelector('.prof-name').textContent = updated.name;
       document.querySelector('.prof-mail').textContent = updated.email;
-      document.querySelector('.prof-hero .ava').textContent = initial(updated.name);
+      refreshAvatars();
       toast('Профиль обновлён');
+    } catch (err) {
+      errorBox.textContent = err.message;
+      errorBox.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const errorBox = document.getElementById('passwordError');
+    errorBox.hidden = true;
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await api('/users/' + session.id + '/password', {
+        method: 'PUT',
+        body: {
+          currentPassword: form.elements.currentPassword.value,
+          newPassword: form.elements.newPassword.value,
+        },
+      });
+      form.reset();
+      toast('Пароль изменён');
     } catch (err) {
       errorBox.textContent = err.message;
       errorBox.hidden = false;
@@ -554,6 +694,20 @@ async function renderProfile() {
     document.getElementById('postsContainer').innerHTML =
       `<div class="error-card">${esc(err.message)}</div>`;
   }
+}
+
+// Кнопки зависят от того, есть ли фото, поэтому перерисовываем весь блок
+function refreshAvatars() {
+  const box = document.getElementById('avaBox');
+  if (box) box.innerHTML = avatarHtml(session, 'xl');
+
+  const pick = document.getElementById('avaPick');
+  if (pick) pick.textContent = session.hasAvatar ? 'Изменить фото' : 'Добавить фото';
+
+  const drop = document.getElementById('avaDrop');
+  if (drop) drop.hidden = !session.hasAvatar;
+
+  renderNav();
 }
 
 function updateProfileStats() {

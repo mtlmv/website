@@ -4,6 +4,7 @@ import com.project.website.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import java.time.LocalDate;
 
 
 @Entity
@@ -24,10 +25,20 @@ public class User {
     String name;
 
     @Column(unique = true)
+    String username;
+
+    @Column(unique = true)
     String email;
 
-
     String password;
+
+    LocalDate birthDate;
+
+    @Column(length = 500)
+    String bio;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    boolean hasAvatar;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

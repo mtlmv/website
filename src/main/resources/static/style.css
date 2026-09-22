@@ -143,6 +143,9 @@ input, textarea { font: inherit; color: inherit; }
   letter-spacing: -.01em;
   text-transform: uppercase;
 }
+/* Фото вместо буквы-заглушки: тот же круг, но картинка кадрируется по центру */
+img.ava { object-fit: cover; background: var(--blue-700); }
+
 .ava.s { width: 32px; height: 32px; font-size: 13px; }
 .ava.xl {
   width: 82px;
@@ -545,6 +548,20 @@ input, textarea { font: inherit; color: inherit; }
   margin-bottom: 16px;
 }
 .prof-hero .ava { margin: 0 auto 14px; }
+.ava-actions { display: flex; justify-content: center; gap: 8px; margin: -4px 0 14px; }
+.btn-ghost {
+  border: 1px solid rgba(255, 255, 255, .45);
+  background: rgba(255, 255, 255, .16);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.btn-ghost:hover { background: rgba(255, 255, 255, .28); }
+.btn-ghost:disabled { opacity: .6; cursor: default; }
+.btn-ghost.danger:hover { background: rgba(255, 255, 255, .28); color: #FFD9D6; }
 .prof-name { font-size: 24px; font-weight: 800; letter-spacing: -.03em; margin: 0; }
 .prof-mail { font-size: 13px; font-weight: 500; opacity: .85; margin: 3px 0 0; word-break: break-all; }
 
